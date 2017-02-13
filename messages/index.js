@@ -167,19 +167,28 @@ intents.matches(/^Category/i, [
 let tableArr = [];
 let categoriesArr = [];
 
-function showCategories()
+function showCategories(session, limit)
 {
-	console.table(tableArr);
+	session.send("Here are some categories: ");
+
+	for ( let index = 0; index < categories.length; index++ )
+	{
+		categoriesArr.push(categories[index].name);
+
+		if ( index == limit )
+			break;
+	}
+
+	let categoriesStr = categoriesArr.join(", ");
+
+	session.send(categoriesStr);
 }
 
 function populateCategories(session)
 {
 	session.send("Finding categories...");
 
-	for (let index = 0; index < categories.length; index += 2){
-		categoriesArr.push(categories[index + 0].name);
-		categoriesArr.push(categories[index + 1].name);
-		
+	for (let index = 0; index < categories.length; index += 2){		
 		category = {
 			Column_1: categories[index + 0].name,
 			Column_2: categories[index + 1].name
@@ -189,9 +198,6 @@ function populateCategories(session)
 		if (index == 10)
 			break;
 	}
-	let categoriesStr = categoriesArr.join("\n");
-
-	session.send(categoriesStr);
 	console.table(tableArr);
 }
 
@@ -216,30 +222,27 @@ intents.matches(/^Hello/i, [
 	(session) => { // match text expression
 		builder.Prompts.text(session,"Please type the from the list provided you are interested in?");
 		
-		populateCategories(session);
-
+		showCategories(session, 200);
 	},
 	(session, results) => {
-		session.send("Thanks! You choose " + results.response);
-		
-		bestbuy.products('(search=' + results.response + ')', {show: 'salePrice,name', pageSize: 10}, function(err, data)
-		{
-			if (err)
-				console.warn(err);
-			else if (data.total === 0)
-				session.send("Sorry, I couldn't find any products under the category " + results.response);
-			else{
-			traverseJson(session, data, displayKVP);
-			session.send('I found %d products. First match "%s" is $%d', data.total, data.products[0].name, data.products[0].salePrice);
-			}
-		});	
-	
 		if ( !isValidCategory(results.response) )
 		{
-			session.send ("Sorry! This isn't a valid category");
-			session.reset();
+			session.endDialog("Sorry! This isn't a valid category");
 		}else{
 			
+			session.send("Thanks! You choose " + results.response);
+			builder.Prompts.number(session, "How many products would you like to show?");
+			bestbuy.products('(search=' + results.response + ')', {show: 'salePrice,name', pageSize: 10}, function(err, data)
+			{
+				if (err)
+					console.warn(err);
+				else if (data.total === 0)
+					session.send("Sorry, I couldn't find any products under the category " + results.response);
+				else{
+					session.send('I found %d products. First match "%s" is $%d', data.total, data.products[0].name, data.products[0].salePrice);
+				}
+			});	
+		
 			session.dialogData.CategoryName = results.response;
 			
 			/*bestbuy.categories('(name=' + results.response + ')', {pageSize: 1}, (err, data) => {
