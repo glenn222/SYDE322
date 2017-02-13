@@ -40,7 +40,7 @@ if (useEmulator) {
     var restify = require('restify');
     var server = restify.createServer();
     server.listen(3978, function() {
-        console.log('test bot endpont at http://localhost:3978/api/messages');
+        session.send('test bot endpont at http://localhost:3978/api/messages');
     });
     server.post('/api/messages', connector.listen());    
 } else {
@@ -69,9 +69,9 @@ function obtainResultsAsync(session, response)
 function parseResults(session, data)
 {
 	if (data.total === 0)
-	  console.log('No categories found');
+	  session.send('No categories found');
 	else
-	  console.log('Found %d categories. First category (%s): %s', data.total, data.categories[0].id, data.categories[0].name);
+	  session.send('Found %d categories. First category (%s): %s', data.total, data.categories[0].id, data.categories[0].name);
 }
 
 function traverseJson(session, jsonObj, func) {
@@ -112,7 +112,7 @@ function constructUrl(dialogData)
 	
 	let fullApiURL = BEST_BUY_BASE_API_URL.concat(pathName).toLowerCase();
 	
-	console.log(fullApiURL);
+	session.send(fullApiURL);
 	traverseJson(responseData, displayKVP);
 	
 	return fullApiURL;
@@ -185,7 +185,7 @@ function populateCategories()
 		if (index == 200)
 			break;
 	}
-	console.table(tableArr);
+	session.send(tableArr.join("\n"));
 }
 
 function isValidCategory(category)
@@ -225,10 +225,10 @@ intents.matches(/^Hello/i, [
 				if (err)
 					console.warn(err);
 				else if (data.total === 0)
-					console.log('No categories found');
+					session.send('No categories found');
 				else
 					traverseJson(session, data, displayKVP);
-					console.log('Found %d categories. First category (%s): %s', data.total, data.categories[0].id, data.categories[0].name);
+					session.send('Found %d categories. First category (%s): %s', data.total, data.categories[0].id, data.categories[0].name);
 			});*/
 			
 			 bestbuy.products('(search=' + results.response + ')', {show: 'salePrice,name', pageSize: 10}, function(err, data)
@@ -236,10 +236,10 @@ intents.matches(/^Hello/i, [
 				  if (err)
 					  console.warn(err);
 				  else if (data.total === 0)
-					  console.log('No products found');
+					  session.send("Sorry, I couldn't find any products under the category " + results.response);
 				  else{
 					traverseJson(session, data, displayKVP);
-					console.log('Found %d products. First match "%s" is $%d', data.total, data.products[0].name, data.products[0].salePrice);
+					session.send('I found %d products. First match "%s" is $%d', data.total, data.products[0].name, data.products[0].salePrice);
 				  }
 			});	
 		}
