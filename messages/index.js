@@ -172,7 +172,7 @@ function showCategories()
 	console.table(tableArr);
 }
 
-function populateCategories()
+function populateCategories(session)
 {
 	for (let index = 0; index < categories.length; index += 2){
 		categoriesArr.push(categories[index + 0].name);
