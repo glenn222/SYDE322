@@ -2,7 +2,7 @@
   "name": "emptybot",
   "version": "1.0.0",
   "description": "SYDE 322 Assignment 2 - Bot builders",
-  "main": "MessengerChatBot.js",
+  "main": "index.js",
   "dependencies": {
     "bestbuy": "^1.0.0",
     "botbuilder": "^3.4.2",
