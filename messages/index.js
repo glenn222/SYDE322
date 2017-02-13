@@ -222,10 +222,12 @@ function populateCategories(session)
 function isValidCategory(category)
 {
 	for ( let c in categoriesArr ){
-		if (categoriesArr[c].toLowerCase() == category.toLowerCase())
+		if (categoriesArr[c].toLowerCase() == category.toLowerCase()){
+			session.send("true %s and %s", categoriesArr[c].toLowerCase(), category.toLowerCase());
 			return true;
+		}
 	}
-	
+	session.send("false %s", category.toLowerCase());
 	return false;
 }
 
