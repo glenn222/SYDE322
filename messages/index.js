@@ -174,6 +174,8 @@ function showCategories()
 
 function populateCategories(session)
 {
+	session.send("Finding categories...");
+
 	for (let index = 0; index < categories.length; index += 2){
 		categoriesArr.push(categories[index + 0].name);
 		categoriesArr.push(categories[index + 1].name);
@@ -218,6 +220,20 @@ intents.matches(/^Hello/i, [
 
 	},
 	(session, results) => {
+		session.send("Thanks! You choose " + results.response);
+		
+		bestbuy.products('(search=' + results.response + ')', {show: 'salePrice,name', pageSize: 10}, function(err, data)
+		{
+			if (err)
+				console.warn(err);
+			else if (data.total === 0)
+				session.send("Sorry, I couldn't find any products under the category " + results.response);
+			else{
+			traverseJson(session, data, displayKVP);
+			session.send('I found %d products. First match "%s" is $%d', data.total, data.products[0].name, data.products[0].salePrice);
+			}
+		});	
+	
 		if ( !isValidCategory(results.response) )
 		{
 			session.send ("Sorry! This isn't a valid category");
@@ -226,7 +242,6 @@ intents.matches(/^Hello/i, [
 			
 			session.dialogData.CategoryName = results.response;
 			
-			session.send("Thanks! You choose " + results.response);
 			/*bestbuy.categories('(name=' + results.response + ')', {pageSize: 1}, (err, data) => {
 				if (err)
 					console.warn(err);
@@ -237,17 +252,6 @@ intents.matches(/^Hello/i, [
 					session.send('Found %d categories. First category (%s): %s', data.total, data.categories[0].id, data.categories[0].name);
 			});*/
 			
-			 bestbuy.products('(search=' + results.response + ')', {show: 'salePrice,name', pageSize: 10}, function(err, data)
-			 {
-				  if (err)
-					  console.warn(err);
-				  else if (data.total === 0)
-					  session.send("Sorry, I couldn't find any products under the category " + results.response);
-				  else{
-					traverseJson(session, data, displayKVP);
-					session.send('I found %d products. First match "%s" is $%d', data.total, data.products[0].name, data.products[0].salePrice);
-				  }
-			});	
 		}
 		
 	}
