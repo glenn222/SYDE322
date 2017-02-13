@@ -49,6 +49,7 @@ if (useEmulator) {
     module.exports = { default: connector.listen() }
 }
 
+
 function obtainResultsAsync(session, response)
 {
 	let jsonData = '';
@@ -185,17 +186,21 @@ function showCategories(session, limit)
 	session.send(categoriesStr);
 }
 
+function isEmpty(val)
+{
+	return (val === undefined || val == null || val.length <= 0) ? true : false;
+}
+
 function showProducts(session, products, limit)
 {
-	limit = limit || products.total;
-
-	session.send("Here are some products you may be interested in: ");
+	let productLimit = ((limit > 100 && limit < 0) || (isEmpty(limit))) ? products.length : limit;
+	
+	session.send("product limit" + productLimit);
+	session.send("Here are %s products you may be interested in: ", productLimit);
 	let productsArray = [];
 	
-	for ( let index = 0; index < limit; index++ )
-	{
-		productsArray.push( "Product " + (index+1) + ":", products[index].name, products[index].salePrice, "\n");
-	}
+	for ( let index = 0; index < productLimit; index++ )
+		productsArray.push( "Product " + (index+1) + ":", "Name - " + products[index].name, "Price - " + products[index].salePrice);
 	
 	let productsString = productsArray.join("\n");
 	session.send(productsString);
@@ -234,8 +239,8 @@ function filterResultsByPrice(productsData, price)
 	let products = [];
 
 	for ( let i = 0; i < productsData.length; i++ )
-		if (productsData.products[i].salePrice <= price)
-			products.push(productsData.products[i]);
+		if (productsData[i].salePrice <= price)
+			products.push(productsData[i]);
 	
 	return products;
 }
@@ -264,34 +269,30 @@ intents.matches(/^Hello/i, [
 
 			bestbuy.products('(search=' + searchTerm + ')', {show: 'salePrice,name', pageSize: 100}, function(err, data)
 			{
-				if (err){
+				if (err)
 					throw err;
-				}else if (data.total === 0)
+				else if (data.total === 0)
 					session.endDialog("Sorry, I couldn't find any products under the category " + results.response);
 				else{
 					session.dialogData.ProductsData = data.products;
 					session.send('I found %d products. An example product I found was "%s" is $%d', data.total, data.products[0].name, data.products[0].salePrice);
-					showProducts(session, data.products, data.total);
 					
 					if (data.total > 0){
-						builder.Prompts.number(session, "How many products would you like to show out of " + data.total + "? (Limit 100)" );
+						builder.Prompts.text(session, "How many products would you like to show out of " + data.total + "? (Limit 100)" );
 					}
 					else
 						session.endDialog("Sorry, I couldn't find any products under the %s category", session.dialogData.CategoryName);
 				}
 			});
 			
-			builder.Prompts.number(session, "What is the maximum budget you're willing to spend on a " + session.dialogData.CategoryName + "-based product?");
-			//session.dialogData.ProductsData = getProducts(session, session.dialogData.CategoryName, 100);
 		}
 	},
 	(session, results, next) => {
 		session.dialogData.ProductLimit = results.response;
-																
-		showProducts(session, session.dialogData.ProductsData, session.dialogData.ProductLimit );
+							
+		showProducts(session, session.dialogData.ProductsData, results.response );
 
 		builder.Prompts.number(session, "What is the maximum budget you're willing to spend on a " + session.dialogData.CategoryName + "-based product?");
-		//session.dialogData.ProductsData = getProducts(session, session.dialogData.CategoryName, results.response);
 
 	},
 	(session, results) =>
@@ -301,11 +302,14 @@ intents.matches(/^Hello/i, [
 
 		session.send("Ok, I'll see if there's any products that are under $%d.", results.response);
 		
-		session.dialogData.FilteredResults = filterResultsByPrice(results.response);
+		session.dialogData.FilteredResults = filterResultsByPrice(session.dialogData.ProductsData, results.response);
 
-		showProducts(session, session.dialogData.FilteredResults );
+		showProducts(session, session.dialogData.FilteredResults);
+		
+		session.reset();
 	}
 ]);
+
 
 function getProducts(session, categoryName, pageSizeAmount)
 {
