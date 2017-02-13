@@ -214,7 +214,8 @@ intents.matches(/^Hello/i, [
 	(session) => { // match text expression
 		builder.Prompts.text(session,"Please type the from the list provided you are interested in?");
 		
-		populateCategories();
+		populateCategories(session);
+
 	},
 	(session, results) => {
 		if ( !isValidCategory(results.response) )
