@@ -222,7 +222,7 @@ function populateCategories(session)
 function isValidCategory(category)
 {
 	for ( let c in categoriesArr ){
-		if (categoriesArr[c].toLowerCase() === category.toLowerCase())
+		if (categoriesArr[c].toLowerCase() == category.toLowerCase())
 			return true;
 	}
 	
