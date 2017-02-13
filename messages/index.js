@@ -1,3 +1,8 @@
+"use strict";
+var botbuilder_azure = require("botbuilder-azure");
+
+var useEmulator = (process.env.NODE_ENV == 'development');
+
 const BEST_BUY_BASE_API_URL = "https://api.bestbuy.com/v1/";
 const BEST_BUY_PRODUCTS_ENDPOINT = "products";
 const BEST_BUY_RECOMMENDATIONS_ENDPOINT = "recommendations";
@@ -6,22 +11,42 @@ const QUERY_BEST_BUY_API_KEY = '?apiKey=ddefqg2f9bnr9zgxc4dwdfbv';
 const DATA_FORMAT_EXTENSION = '.json';
 
 const API_KEY = 'ddefqg2f9bnr9zgxc4dwdfbv'
-const bestbuy = require('bestbuy')(API_KEY);
-require('console.table');
-const categories = require('./BestBuyCategories.json');
+//const bestbuy = require('bestbuy')(API_KEY);
+//require('console.table');
+//const categories = require('./BestBuyCategories.json');
 
 const fs = require('fs');
 
 // Provides access to Bot Builder
 const builder = require('botbuilder');
+// Use HTTP module
+const http = require('http');
 // Use HTTPS module
 const https = require('https');
-// Connect to console
-const connector = new builder.ConsoleConnector().listen();
+// Connect to bot services
+const connector = useEmulator ? new builder.ChatConnector() : new botbuilder_azure.BotServiceConnector({
+    appId: process.env['MicrosoftAppId'],
+    appPassword: process.env['MicrosoftAppPassword'],
+    stateEndpoint: process.env['BotStateEndpoint'],
+    openIdMetadata: process.env['BotOpenIdMetadata']
+});
+
 // Use universal Bot
 const bot = new builder.UniversalBot(connector);
 
 let apiResponse;
+
+if (useEmulator) {
+    var restify = require('restify');
+    var server = restify.createServer();
+    server.listen(3978, function() {
+        console.log('test bot endpont at http://localhost:3978/api/messages');
+    });
+    server.post('/api/messages', connector.listen());    
+} else {
+    module.exports = { default: connector.listen() }
+}
+
 
 function obtainResultsAsync(session, response)
 {
