@@ -193,7 +193,7 @@ function isEmpty(val)
 
 function showProducts(session, products, limit)
 {
-	let productLimit = ((limit > 100 && limit < 0) || (isEmpty(limit))) ? products.length : limit;
+	let productLimit = ((limit > products.length && limit < 0) || (isEmpty(limit))) ? products.length : limit;
 	
 	session.send("Here are %s products you may be interested in: ", productLimit);
 	let productsArray = [];
