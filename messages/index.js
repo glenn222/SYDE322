@@ -49,7 +49,6 @@ if (useEmulator) {
     module.exports = { default: connector.listen() }
 }
 
-
 function obtainResultsAsync(session, response)
 {
 	let jsonData = '';
@@ -188,16 +187,16 @@ function showCategories(session, limit)
 
 function showProducts(session, products, limit)
 {
-	limit = limit || products.length;
+	limit = limit || products.total;
 
 	session.send("Here are some products you may be interested in: ");
 	let productsArray = [];
-
+	
 	for ( let index = 0; index < limit; index++ )
 	{
-		productsArray.push( "Product " + (index+1) + ":", products[index].name, products[index].price, "\n");
+		productsArray.push( "Product " + (index+1) + ":", products[index].name, products[index].salePrice, "\n");
 	}
-
+	
 	let productsString = productsArray.join("\n");
 	session.send(productsString);
 }
@@ -223,11 +222,10 @@ function isValidCategory(session, category)
 {
 	for ( let c in categoriesArr ){
 		if (categoriesArr[c].toLowerCase() === category.toLowerCase()){
-			session.send("true %s and %s", categoriesArr[c].toLowerCase(), category.toLowerCase());
 			return true;
 		}
 	}
-	session.send("false %s", category.toLowerCase());
+	
 	return false;
 }
 
@@ -255,23 +253,46 @@ intents.matches(/^Hello/i, [
 		
 		showCategories(session, 200);
 	},
-	(session, results) => {
+	(session, results, next) => {
 		if ( !isValidCategory(session, results.response) )
 		{
 			session.endDialog("Sorry! This isn't a valid category");
 		}else{
 			session.dialogData.CategoryName = results.response;
 			
-			session.dialogData.ProductsData = getProducts(session, session.dialogData.CategoryName, 1);
+			let searchTerm = session.dialogData.CategoryName.split(" ").join("&search=");
+
+			bestbuy.products('(search=' + searchTerm + ')', {show: 'salePrice,name', pageSize: 100}, function(err, data)
+			{
+				if (err){
+					throw err;
+				}else if (data.total === 0)
+					session.endDialog("Sorry, I couldn't find any products under the category " + results.response);
+				else{
+					session.dialogData.ProductsData = data.products;
+					session.send('I found %d products. An example product I found was "%s" is $%d', data.total, data.products[0].name, data.products[0].salePrice);
+					showProducts(session, data.products, data.total);
+					
+					if (data.total > 0){
+						builder.Prompts.number(session, "How many products would you like to show out of " + data.total + "? (Limit 100)" );
+					}
+					else
+						session.endDialog("Sorry, I couldn't find any products under the %s category", session.dialogData.CategoryName);
+				}
+			});
+			
+			builder.Prompts.number(session, "What is the maximum budget you're willing to spend on a " + session.dialogData.CategoryName + "-based product?");
+			//session.dialogData.ProductsData = getProducts(session, session.dialogData.CategoryName, 100);
 		}
 	},
-	(session, results) => {
+	(session, results, next) => {
 		session.dialogData.ProductLimit = results.response;
-
-		session.dialogData.ProductsData = getProducts(session, session.dialogData.CategoryName, results.response);
+																
 		showProducts(session, session.dialogData.ProductsData, session.dialogData.ProductLimit );
 
-		builder.Prompts.number(session, "What is the maximum budget you're willing to spend on a" + session.dialogData.CategoryName + "-based product?");	
+		builder.Prompts.number(session, "What is the maximum budget you're willing to spend on a " + session.dialogData.CategoryName + "-based product?");
+		//session.dialogData.ProductsData = getProducts(session, session.dialogData.CategoryName, results.response);
+
 	},
 	(session, results) =>
 	{
@@ -288,15 +309,11 @@ intents.matches(/^Hello/i, [
 
 function getProducts(session, categoryName, pageSizeAmount)
 {
-	bestbuy.products('categoryPath.id=abcat0502000&driveCapacityGb=*',{show:'sku,name,salePrice'}).then(function(data){
-		console.log(data);
-	});
-	
 	let searchTerm = categoryName.split(" ").join("&search=");
 
-	bestbuy.products('(search=' + searchTerm + ')', {show: 'salePrice,name', pageSize: pageSizeAmount}).then(function(err, data)
+	bestbuy.products('(search=' + searchTerm + ')', {show: 'salePrice,name', pageSize: pageSizeAmount}, function(err, data)
 	{
-		if (err.statusCode != 200){
+		if (err){
 			throw err;
 		}else if (data.total === 0)
 			session.endDialog("Sorry, I couldn't find any products under the category " + results.response);
@@ -304,13 +321,12 @@ function getProducts(session, categoryName, pageSizeAmount)
 			session.dialogData.ProductsData = data;
 			session.send('I found %d products. An example product I found was "%s" is $%d', data.total, data.products[0].name, data.products[0].salePrice);
 			
-			
-			if (session.dialogData.ProductsData.total > 0)
-				builder.Prompts.number(session, "How many products would you like to show out of " + ProductsData.total + "?" );
+			if (data.total > 0 && pageSizeAmount == 1)
+				builder.Prompts.number(session, "How many products would you like to show out of " + data.total + "? (Limit 100)" );
+			else if (data.total > 0 && pageSizeAmount != 1)		
+				builder.Prompts.number(session, "What is the maximum budget you're willing to spend on a " + session.dialogData.CategoryName + "-based product?");
 			else
 				session.endDialog("Sorry, I couldn't find any products under the %s category", session.dialogData.CategoryName);
-			
-			next();
 		}
 	});
 }
