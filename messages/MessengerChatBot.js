@@ -1,4 +1,3 @@
-
 const BEST_BUY_BASE_API_URL = "https://api.bestbuy.com/v1/";
 const BEST_BUY_PRODUCTS_ENDPOINT = "products";
 const BEST_BUY_RECOMMENDATIONS_ENDPOINT = "recommendations";
@@ -7,9 +6,9 @@ const QUERY_BEST_BUY_API_KEY = '?apiKey=ddefqg2f9bnr9zgxc4dwdfbv';
 const DATA_FORMAT_EXTENSION = '.json';
 
 const API_KEY = 'ddefqg2f9bnr9zgxc4dwdfbv'
-//const bestbuy = require('bestbuy')(API_KEY);
-//require('console.table');
-//const categories = require('./BestBuyCategories.json');
+const bestbuy = require('bestbuy')(API_KEY);
+require('console.table');
+const categories = require('./BestBuyCategories.json');
 
 const fs = require('fs');
 
@@ -17,35 +16,12 @@ const fs = require('fs');
 const builder = require('botbuilder');
 // Use HTTPS module
 const https = require('https');
-
-"use strict";
-var botbuilder_azure = require("botbuilder-azure");
-
-var useEmulator = (process.env.NODE_ENV == 'development');
-
-// Connect to bot services
-const connector = useEmulator ? new builder.ChatConnector() : new botbuilder_azure.BotServiceConnector({
-    appId: process.env['MicrosoftAppId'],
-    appPassword: process.env['MicrosoftAppPassword'],
-    stateEndpoint: process.env['BotStateEndpoint'],
-    openIdMetadata: process.env['BotOpenIdMetadata']
-});
-
+// Connect to console
+const connector = new builder.ConsoleConnector().listen();
 // Use universal Bot
 const bot = new builder.UniversalBot(connector);
 
 let apiResponse;
-
-if (useEmulator) {
-    var restify = require('restify');
-    var server = restify.createServer();
-    server.listen(3978, function() {
-        console.log('test bot endpont at http://localhost:3978/api/messages');
-    });
-    server.post('/api/messages', connector.listen());    
-} else {
-    module.exports = { default: connector.listen() }
-}
 
 function obtainResultsAsync(session, response)
 {
@@ -166,7 +142,7 @@ let categoriesArr = [];
 
 function showCategories()
 {
-	console.log(tableArr.join("\n"));
+	console.table(tableArr);
 }
 
 function populateCategories()
@@ -184,8 +160,7 @@ function populateCategories()
 		if (index == 200)
 			break;
 	}
-	console.log(tableArr.join("\n"));
-	//console.table(tableArr);
+	console.table(tableArr);
 }
 
 function isValidCategory(category)
@@ -197,6 +172,13 @@ function isValidCategory(category)
 	
 	return false;
 }
+
+bot.dialog('/recommend', [
+	(session) => {
+		console.table(tableArr);
+		builder.Prompts.text("Choose a category from the list provided");
+	}
+]);
 
 intents.matches(/^Hello/i, [
 	(session) => { // match text expression
@@ -214,7 +196,16 @@ intents.matches(/^Hello/i, [
 			session.dialogData.CategoryName = results.response;
 			
 			session.send("Thanks! You choose " + results.response);
-			/*
+			/*bestbuy.categories('(name=' + results.response + ')', {pageSize: 1}, (err, data) => {
+				if (err)
+					console.warn(err);
+				else if (data.total === 0)
+					console.log('No categories found');
+				else
+					traverseJson(session, data, displayKVP);
+					console.log('Found %d categories. First category (%s): %s', data.total, data.categories[0].id, data.categories[0].name);
+			});*/
+			
 			 bestbuy.products('(search=' + results.response + ')', {show: 'salePrice,name', pageSize: 10}, function(err, data)
 			 {
 				  if (err)
@@ -225,7 +216,7 @@ intents.matches(/^Hello/i, [
 					traverseJson(session, data, displayKVP);
 					console.log('Found %d products. First match "%s" is $%d', data.total, data.products[0].name, data.products[0].salePrice);
 				  }
-			});*/
+			});	
 		}
 		
 	}
