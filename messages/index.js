@@ -256,10 +256,10 @@ intents.matches(/^Hello/i, [
 		showCategories(session, 200);
 	},
 	(session, results) => {
-		//if ( !isValidCategory(results.response) )
-		//{
-		//	session.endDialog("Sorry! This isn't a valid category");
-		//else{
+		if ( !isValidCategory(results.response) )
+		{
+			session.endDialog("Sorry! This isn't a valid category");
+		}else{
 			session.dialogData.CategoryName = results.response;
 			
 			session.dialogData.ProductsData = getProducts(session.dialogData.CategoryName, 1);
@@ -270,7 +270,7 @@ intents.matches(/^Hello/i, [
 				session.endDialog("Sorry, I couldn't find any products under the %s category", session.dialogData.CategoryName);
 
 			next();
-		//}
+		}
 	},
 	(session, results) => {
 		session.dialogData.ProductLimit = results.response;
