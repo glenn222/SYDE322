@@ -169,18 +169,20 @@ let categoriesArr = [];
 
 function showCategories(session, limit)
 {
-	session.send("Here are some categories: ");
-
-	for ( let index = 0; index < categories.length; index++ )
+	if (categoriesArr.length === 0)
 	{
-		categoriesArr.push(categories[index].name);
+		for ( let index = 0; index < categories.length; index++ )
+		{
+			categoriesArr.push(categories[index].name);
 
-		if ( index == limit )
-			break;
+			if ( index == limit )
+				break;
+		}
 	}
-
+	
 	let categoriesStr = categoriesArr.join("\n");
-
+	
+	session.send("Here are some categories: ");
 	session.send(categoriesStr);
 }
 
@@ -218,7 +220,7 @@ function populateCategories(session)
 function isValidCategory(category)
 {
 	for ( let c in categories ){
-		if (categorie[c].name.toLowerCase() === category.toLowerCase())
+		if (categories[c].name.toLowerCase() === category.toLowerCase())
 			return true;
 	}
 	
