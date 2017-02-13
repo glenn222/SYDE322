@@ -11,9 +11,11 @@ const QUERY_BEST_BUY_API_KEY = '?apiKey=ddefqg2f9bnr9zgxc4dwdfbv';
 const DATA_FORMAT_EXTENSION = '.json';
 
 const API_KEY = 'ddefqg2f9bnr9zgxc4dwdfbv'
-//const bestbuy = require('bestbuy')(API_KEY);
-//require('console.table');
-//const categories = require('./BestBuyCategories.json');
+
+const bestbuy = require('bestbuy')(API_KEY);
+require('console.table');
+
+const categories = require('./BestBuyCategories.json');
 
 const fs = require('fs');
 
@@ -181,11 +183,14 @@ function populateCategories()
 			Column_2: categories[index + 1].name
 		}
 		tableArr.push(category);
-		// Just show first 1000 categories out of many
-		if (index == 200)
+		// Just show first 10 categories out of many
+		if (index == 10)
 			break;
 	}
-	session.send(tableArr.join("\n"));
+	let categoriesStr = categoriesArr.join("\n");
+
+	session.send(categoriesStr);
+	console.table(tableArr);
 }
 
 function isValidCategory(category)
