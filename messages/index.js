@@ -186,12 +186,14 @@ function showCategories(session, limit)
 	session.send(categoriesStr);
 }
 
-function showProducts(session, products)
+function showProducts(session, products, limit)
 {
+	limit = limit || products.length;
+
 	session.send("Here are some products you may be interested in: ");
 	let productsArray = [];
 
-	for ( let index = 0; index < products.length; index++ )
+	for ( let index = 0; index < limit; index++ )
 	{
 		productsArray.push( "Product " + (index+1) + ":", products[index].name, products[index].price, "\n");
 	}
@@ -219,8 +221,8 @@ function populateCategories(session)
 
 function isValidCategory(category)
 {
-	for ( let c in categories ){
-		if (categories[c].name.toLowerCase() === category.toLowerCase())
+	for ( let c in categoriesArr ){
+		if (categoriesArr[c].toLowerCase() === category.toLowerCase())
 			return true;
 	}
 	
@@ -258,16 +260,40 @@ intents.matches(/^Hello/i, [
 		}else{
 			session.dialogData.CategoryName = results.response;
 			
-			session.send("Thanks! I was also wondering how many products you would like me to show? " + results.response);
-			builder.Prompts.number(session, "How many products would you like to show?");
+			session.dialogData.ProductsData = getProducts(session.dialogData.CategoryName, 1);
+
+			if (ProductsData.total > 0)
+				builder.Prompts.number(session, "How many products would you like to show out of " + ProductsData.total + "?" );
+			else
+				session.endDialog("Sorry, I couldn't find any products under the %s category", session.dialogData.CategoryName);
+
+			next();
 		}
 	},
 	(session, results) => {
 		session.dialogData.ProductLimit = results.response;
 
-		session.send("Thanks! Give me a second to look if there's any products under " + results.response);
+		session.dialogData.ProductsData = getProducts(session.dialogData.CategoryName, 1);
+		showProducts(session, session.dialogData.ProductsData, session.dialogData.ProductLimit );
+
+		builder.Prompts.number(session, "What is the maximum budget you're willing to spend on a" + session.dialogData.CategoryName + "-based product?");	
+	},
+	(session, results) =>
+	{
+		if ( results.response > 0 && results.response <= Number.POSITIVE_INFINITY )
+			session.dialogData.MaxBudget = results.response;
+
+		session.send("Ok, I'll see if there's any products that are under $%d.", results.response);
 		
-		bestbuy.products('(search=' + session.dialogData.CategoryName + ')', {show: 'salePrice, name', pageSize: results.response}, function(err, data)
+		session.dialogData.FilteredResults = filterResultsByPrice(results.response);
+
+		showProducts(session, session.dialogData.FilteredResults );
+	}
+]);
+
+function getProducts(categoryName, pageSizeAmount)
+{
+		bestbuy.products('(search=' + categoryName + ')', {show: 'salePrice, name', pageSize: pageSizeAmount}, function(err, data)
 		{
 			if (err){
 				session.send("Sorry, looks like something went wrong. The error was");
@@ -277,20 +303,11 @@ intents.matches(/^Hello/i, [
 			else{
 				session.dialogData.ProductsData = data;
 				session.send('I found %d products. An example product I found was "%s" is $%d', data.total, data.products[0].name, data.products[0].salePrice);
-				builder.Prompts.number(session, "What is your maximum budget you're willing to spend?");
-				next();
 			}
-		});	
-	},
-	(session, results) =>
-	{
-		session.dialogData.MaxBudget = results.response;
 
-		session.dialogData.FilteredResults = filterResultsByPrice(results.response);
-
-		showProducts(session, session.dialogData.FilteredResults);
-	}
-]);
+			return data;
+		});
+}
 
 intents.onDefault((session) => {
 	session.send('Hey there! I am a Best Buy API Bot. Say hello to begin!');
