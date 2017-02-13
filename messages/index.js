@@ -179,9 +179,23 @@ function showCategories(session, limit)
 			break;
 	}
 
-	let categoriesStr = categoriesArr.join(", ");
+	let categoriesStr = categoriesArr.join("\n");
 
 	session.send(categoriesStr);
+}
+
+function showProducts(session, products)
+{
+	session.send("Here are some products you may be interested in: ");
+	let productsArray = [];
+
+	for ( let index = 0; index < products.length; index++ )
+	{
+		productsArray.push( "Product " + (index+1) + ":", products[index].name, products[index].price, "\n");
+	}
+
+	let productsString = productsArray.join("\n");
+	session.send(productsString);
 }
 
 function populateCategories(session)
@@ -211,6 +225,17 @@ function isValidCategory(category)
 	return false;
 }
 
+function filterResultsByPrice(productsData, price)
+{
+	let products = [];
+
+	for ( let i = 0; i < productsData.length; i++ )
+		if (productsData.products[i].salePrice <= price)
+			products.push(productsData.products[i]);
+	
+	return products;
+}
+
 bot.dialog('/recommend', [
 	(session) => {
 		console.table(tableArr);
@@ -220,7 +245,7 @@ bot.dialog('/recommend', [
 
 intents.matches(/^Hello/i, [
 	(session) => { // match text expression
-		builder.Prompts.text(session,"Please type the from the list provided you are interested in?");
+		builder.Prompts.text(session, "Please type a category that interests you from the list provided");
 		
 		showCategories(session, 200);
 	},
@@ -229,37 +254,42 @@ intents.matches(/^Hello/i, [
 		{
 			session.endDialog("Sorry! This isn't a valid category");
 		}else{
-			
-			session.send("Thanks! You choose " + results.response);
-			builder.Prompts.number(session, "How many products would you like to show?");
-			bestbuy.products('(search=' + results.response + ')', {show: 'salePrice,name', pageSize: 10}, function(err, data)
-			{
-				if (err)
-					console.warn(err);
-				else if (data.total === 0)
-					session.send("Sorry, I couldn't find any products under the category " + results.response);
-				else{
-					session.send('I found %d products. First match "%s" is $%d', data.total, data.products[0].name, data.products[0].salePrice);
-				}
-			});	
-		
 			session.dialogData.CategoryName = results.response;
 			
-			/*bestbuy.categories('(name=' + results.response + ')', {pageSize: 1}, (err, data) => {
-				if (err)
-					console.warn(err);
-				else if (data.total === 0)
-					session.send('No categories found');
-				else
-					traverseJson(session, data, displayKVP);
-					session.send('Found %d categories. First category (%s): %s', data.total, data.categories[0].id, data.categories[0].name);
-			});*/
-			
+			session.send("Thanks! I was also wondering how many products you would like me to show? " + results.response);
+			builder.Prompts.number(session, "How many products would you like to show?");
 		}
+	},
+	(session, results) => {
+		session.dialogData.ProductLimit = results.response;
+
+		session.send("Thanks! Give me a second to look if there's any products under " + results.response);
 		
+		bestbuy.products('(search=' + session.dialogData.CategoryName + ')', {show: 'salePrice, name', pageSize: results.response}, function(err, data)
+		{
+			if (err){
+				session.send("Sorry, looks like something went wrong. The error was");
+				session.send(err);
+			}else if (data.total === 0)
+				session.endDialog("Sorry, I couldn't find any products under the category " + results.response);
+			else{
+				session.dialogData.ProductsData = data;
+				session.send('I found %d products. An example product I found was "%s" is $%d', data.total, data.products[0].name, data.products[0].salePrice);
+				builder.Prompts.number(session, "What is your maximum budget you're willing to spend?");
+				next();
+			}
+		});	
+	},
+	(session, results) =>
+	{
+		session.dialogData.MaxBudget = results.response;
+
+		session.dialogData.FilteredResults = filterResultsByPrice(results.response);
+
+		showProducts(session, session.dialogData.FilteredResults);
 	}
 ]);
 
 intents.onDefault((session) => {
-	session.send('Hey there! I am a Simple Best Buy API Bot. Say hello to begin!');
+	session.send('Hey there! I am a Best Buy API Bot. Say hello to begin!');
 });
