@@ -5,8 +5,6 @@ var useEmulator = (process.env.NODE_ENV == 'development');
 
 const BEST_BUY_BASE_API_URL = "https://api.bestbuy.com/v1/";
 const BEST_BUY_PRODUCTS_ENDPOINT = "products";
-const BEST_BUY_RECOMMENDATIONS_ENDPOINT = "recommendations";
-const BEST_BUY_OPEN_BOX_ENDPOINT = "courses";
 const QUERY_BEST_BUY_API_KEY = '?apiKey=ddefqg2f9bnr9zgxc4dwdfbv';
 const DATA_FORMAT_EXTENSION = '.json';
 
@@ -48,7 +46,6 @@ if (useEmulator) {
 } else {
     module.exports = { default: connector.listen() }
 }
-
 
 function obtainResultsAsync(session, response)
 {
@@ -124,48 +121,12 @@ function constructUrl(dialogData)
 const intents = new builder.IntentDialog();
 bot.dialog('/', intents);
 
-intents.matches(/^Course/i, [ // perform text matching
-	(session) => {
-		session.dialogData.Intent = UW_COURSES_ENDPOINT_URL;
-		builder.Prompts.text(session, 'Enter the course subject you are you interested in. (Ex. SYDE, NE, ECE, etc...)');
-		
-	},
-	(session, results) => {
-		session.dialogData.CourseSubject = results.response;
-		builder.Prompts.text(session, 'Enter the course number you are you interested in for ' +  results.response + '. (Ex. 100, 322, 232)');
-	},
-	(session, results) => {
-		session.dialogData.CourseNumber = results.response;
-		
-		let url = constructUrl(session.dialogData);
-		
-		// retrieve data from a given url
-		https.get(url, (response) => {
-			obtainResultsAsync(session, response);
-		});
-	}
-]);
-
-intents.matches(/^Category/i, [
-	(session) => {
-		builder.Prompts.text(session, 'Is there any specific category you would be interested in?');
-	},
-	(session, results) => {
-		session.dialogData.CategoryName = results.response;
-		
-		session.send('Here are some upcoming events at the University of Waterloo.');
-		
-		let url = constructUrl(session.dialogData);
-		
-		// retrieve data from a given url
-		https.get(url, (response) => {
-			obtainResultsAsync(session, response);
-		});
-	}
-]);
-
-let tableArr = [];
 let categoriesArr = [];
+
+function isEmpty(val)
+{
+	return (val === undefined || val == null || val.length <= 0) ? true : false;
+}
 
 function showCategories(session, limit)
 {
@@ -186,21 +147,17 @@ function showCategories(session, limit)
 	session.send(categoriesStr);
 }
 
-function isEmpty(val)
-{
-	return (val === undefined || val == null || val.length <= 0) ? true : false;
-}
-
 function showProducts(session, products, limit)
 {
 	let productLimit = ((limit > products.length && limit < 0) || (isEmpty(limit))) ? products.length : limit;
 	
 	session.send("Here are %s products you may be interested in: ", productLimit);
 	let productsArray = [];
-	
-	for ( let index = 0; index < productLimit; index++ )
+
+	for ( let index = 0; index < productLimit; index++ ){
 		productsArray.push( "Product " + (index+1) + ":", "Name - " + products[index].name, "Price - " + products[index].salePrice);
-	
+	}
+
 	let productsString = productsArray.join("\n");
 	session.send(productsString);
 }
@@ -244,12 +201,29 @@ function filterResultsByPrice(productsData, price)
 	return products;
 }
 
-bot.dialog('/recommend', [
-	(session) => {
-		console.table(tableArr);
-		builder.Prompts.text("Choose a category from the list provided");
-	}
-]);
+function getProducts(session, categoryName, pageSizeAmount)
+{
+	let searchTerm = categoryName.split(" ").join("&search=");
+
+	bestbuy.products('(search=' + searchTerm + ')', {show: 'salePrice,name', pageSize: pageSizeAmount}, function(err, data)
+	{
+		if (err){
+			throw err;
+		}else if (data.total === 0)
+			session.endDialog("Sorry, I couldn't find any products under the category " + results.response);
+		else{
+			session.dialogData.ProductsData = data;
+			session.send('I found %d products. An example product I found was "%s" is $%d', data.total, data.products[0].name, data.products[0].salePrice);
+			
+			if (data.total > 0 && pageSizeAmount == 1)
+				builder.Prompts.number(session, "How many products would you like to show out of " + data.total + "? (Limit 100)" );
+			else if (data.total > 0 && pageSizeAmount != 1)		
+				builder.Prompts.number(session, "What is the maximum budget you're willing to spend on a " + session.dialogData.CategoryName + "-based product?");
+			else
+				session.endDialog("Sorry, I couldn't find any products under the %s category", session.dialogData.CategoryName);
+		}
+	});
+}
 
 intents.matches(/^Hello/i, [
 	(session) => { // match text expression
@@ -266,7 +240,7 @@ intents.matches(/^Hello/i, [
 			
 			let searchTerm = session.dialogData.CategoryName.split(" ").join("&search=");
 
-			bestbuy.products('(search=' + searchTerm + ')', {show: 'salePrice,name', pageSize: 100}, function(err, data)
+			bestbuy.products('(search=' + searchTerm + ')', {show: 'upc,salePrice,name', pageSize: 100}, function(err, data)
 			{
 				if (err)
 					throw err;
@@ -305,34 +279,25 @@ intents.matches(/^Hello/i, [
 
 		showProducts(session, session.dialogData.FilteredResults);
 		
-		session.reset();
+		session.send("Is there a specific product from the list that interests you? I'll see if I can gather more information on it.")
+		builder.Prompts.text(session, "Type in the product number (1-" + session.dialogData.FilteredResults.length + ")");
+		
+	},
+	(session, results) =>
+	{
+		let productIndex = Number(results.response) - 1;
+		let productUPC = session.dialogData.ProductsData[productIndex].upc;
+		session.dialogData.ProductUPC = productUPC;
+		session.send("Thanks, you chose product %s", productUPC);
+
+		bestbuy.products('upc=' + productUPC, (err, data) => {
+			session.send(JSON.stringify(data));
+			session.send("Hope I helped you out! Happy to be at your service!");
+			session.reset();
+		});
+
 	}
 ]);
-
-
-function getProducts(session, categoryName, pageSizeAmount)
-{
-	let searchTerm = categoryName.split(" ").join("&search=");
-
-	bestbuy.products('(search=' + searchTerm + ')', {show: 'salePrice,name', pageSize: pageSizeAmount}, function(err, data)
-	{
-		if (err){
-			throw err;
-		}else if (data.total === 0)
-			session.endDialog("Sorry, I couldn't find any products under the category " + results.response);
-		else{
-			session.dialogData.ProductsData = data;
-			session.send('I found %d products. An example product I found was "%s" is $%d', data.total, data.products[0].name, data.products[0].salePrice);
-			
-			if (data.total > 0 && pageSizeAmount == 1)
-				builder.Prompts.number(session, "How many products would you like to show out of " + data.total + "? (Limit 100)" );
-			else if (data.total > 0 && pageSizeAmount != 1)		
-				builder.Prompts.number(session, "What is the maximum budget you're willing to spend on a " + session.dialogData.CategoryName + "-based product?");
-			else
-				session.endDialog("Sorry, I couldn't find any products under the %s category", session.dialogData.CategoryName);
-		}
-	});
-}
 
 intents.onDefault((session) => {
 	session.send('Hey there! I am a Best Buy API Bot. Say hello to begin!');
