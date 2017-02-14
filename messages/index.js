@@ -128,6 +128,17 @@ function isEmpty(val)
 	return (val === undefined || val == null || val.length <= 0) ? true : false;
 }
 
+function isValidCategory(session, category)
+{
+	for ( let c in categoriesArr ){
+		if (categoriesArr[c].toLowerCase() === category.toLowerCase()){
+			return true;
+		}
+	}
+	
+	return false;
+}
+
 function showCategories(session, limit)
 {
 	if (categoriesArr.length === 0)
@@ -147,21 +158,6 @@ function showCategories(session, limit)
 	session.send(categoriesStr);
 }
 
-function showProducts(session, products, limit)
-{
-	let productLimit = ((limit > products.length && limit < 0) || (isEmpty(limit))) ? products.length : limit;
-	
-	session.send("Here are %s products you may be interested in: ", productLimit);
-	let productsArray = [];
-
-	for ( let index = 0; index < productLimit; index++ ){
-		productsArray.push( "Product " + (index+1) + ":", "Name - " + products[index].name, "Price - " + products[index].salePrice);
-	}
-
-	let productsString = productsArray.join("\n");
-	session.send(productsString);
-}
-
 function populateCategories(session)
 {
 	session.send("Finding categories...");
@@ -179,17 +175,6 @@ function populateCategories(session)
 	console.table(tableArr);
 }
 
-function isValidCategory(session, category)
-{
-	for ( let c in categoriesArr ){
-		if (categoriesArr[c].toLowerCase() === category.toLowerCase()){
-			return true;
-		}
-	}
-	
-	return false;
-}
-
 function filterResultsByPrice(productsData, price)
 {
 	let products = [];
@@ -199,6 +184,35 @@ function filterResultsByPrice(productsData, price)
 			products.push(productsData[i]);
 	
 	return products;
+}
+
+function showProducts(session, products, limit)
+{
+	let productLimit = ((limit > products.length && limit < 0) || (isEmpty(limit))) ? products.length : limit;
+	
+	session.send("Here are %s products you may be interested in: ", productLimit);
+	let productsArray = [];
+
+	for ( let index = 0; index < productLimit; index++ ){
+		productsArray.push( "Product " + (index+1) + ":", "Name - " + products[index].name, "Price - " + products[index].salePrice);
+	}
+
+	let productsString = productsArray.join("\n");
+	session.send(productsString);
+}
+
+function showProduct(session, products)
+{
+	let product = products[0];
+	let productKeys = Object.keys(product);
+	let productObj = {};
+	
+	for ( let i = 0; i < productKeys.length; ++i ) {
+		if (!isEmpty(product[productKeys[i]]))
+			productObj[productKeys[i]] = product[productKeys[i]];
+	}
+	
+	return productObj;
 }
 
 function getProducts(session, categoryName, pageSizeAmount)
@@ -261,41 +275,65 @@ intents.matches(/^Hello/i, [
 		}
 	},
 	(session, results, next) => {
-		session.dialogData.ProductLimit = results.response;
-							
-		showProducts(session, session.dialogData.ProductsData, results.response );
+		if ( results.response > 0 && results.response <= session.dialogData.ProductsData.length ){
+			session.dialogData.ProductLimit = results.response;
+		
+			showProducts(session, session.dialogData.ProductsData, results.response );
 
-		builder.Prompts.number(session, "What is the maximum budget you're willing to spend on a " + session.dialogData.CategoryName + "-based product?");
-
+			builder.Prompts.number(session, "What is the maximum budget you're willing to spend on a " + session.dialogData.CategoryName + "-based product?");
+		}else{
+			session.endDialog("Sorry that's not a valid number! Please try again!");
+			session.reset();
+		}
 	},
 	(session, results) =>
 	{
 		if ( results.response > 0 && results.response <= Number.POSITIVE_INFINITY )
 			session.dialogData.MaxBudget = results.response;
-
+		else{
+			session.endDialog("Sorry that's not a valid number! Please try again!");
+			session.reset();
+		}
+		
 		session.send("Ok, I'll see if there's any products that are under $%d.", results.response);
 		
 		session.dialogData.FilteredResults = filterResultsByPrice(session.dialogData.ProductsData, results.response);
-
+		
+		if (session.dialogData.FilteredResults.length === 0)
+			session.endDialog("I couldn't find any results matching your selection, sorry.");
+		
 		showProducts(session, session.dialogData.FilteredResults);
 		
 		session.send("Is there a specific product from the list that interests you? I'll see if I can gather more information on it.")
 		builder.Prompts.text(session, "Type in the product number (1-" + session.dialogData.FilteredResults.length + ")");
 		
 	},
-	(session, results) =>
+	(session, results, next) =>
 	{
 		let productIndex = Number(results.response) - 1;
-		let productUPC = session.dialogData.ProductsData[productIndex].upc;
-		session.dialogData.ProductUPC = productUPC;
-		session.send("Thanks, you chose product %s", productUPC);
-
-		bestbuy.products('upc=' + productUPC, (err, data) => {
-			session.send(JSON.stringify(data));
-			session.send("Hope I helped you out! Happy to be at your service!");
+		if (productIndex > session.dialogData.FilteredResults.length || productIndex < 0){
+			session.endDialog("That's not a possible item, please try again thanks");
 			session.reset();
-		});
+		}else{
+			let productUPC = session.dialogData.FilteredResults[productIndex].upc;
+			
+			session.dialogData.ProductUPC = productUPC;
+			session.send("Thanks, you chose product %s", (productIndex+1));
 
+			bestbuy.products('upc=' + productUPC, (err, data) => {
+				session.dialogData.ProductData = data.products;
+				next();
+			});
+		}
+	},
+	(session, results) => {
+		let filteredData = showProduct(session, session.dialogData.ProductData);
+		
+		session.send("Here's some more useful data about %s\n", filteredData.name);
+		session.send(JSON.stringify(filteredData, null, 4));
+		
+		session.send("Hope I helped you out! Happy to be at your service!");
+		session.reset();
 	}
 ]);
 
