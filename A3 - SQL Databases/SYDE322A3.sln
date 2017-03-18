@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 14
+VisualStudioVersion = 14.0.24720.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DroneUI", "DroneUI\DroneUI.csproj", "{5E6DA523-559A-4E0F-8577-38C525666207}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DroneBackend", "DroneBackend\DroneBackend.csproj", "{AF5D7368-688C-499E-98C4-D4339A03EC0F}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{5E6DA523-559A-4E0F-8577-38C525666207}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5E6DA523-559A-4E0F-8577-38C525666207}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5E6DA523-559A-4E0F-8577-38C525666207}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5E6DA523-559A-4E0F-8577-38C525666207}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AF5D7368-688C-499E-98C4-D4339A03EC0F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AF5D7368-688C-499E-98C4-D4339A03EC0F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AF5D7368-688C-499E-98C4-D4339A03EC0F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AF5D7368-688C-499E-98C4-D4339A03EC0F}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,7 @@
+C:\Users\_\Repositories\SYDE322\A3 - SQL Databases\DroneBackend\bin\Debug\DroneBackend.dll
+C:\Users\_\Repositories\SYDE322\A3 - SQL Databases\DroneBackend\bin\Debug\DroneBackend.pdb
+C:\Users\_\Repositories\SYDE322\A3 - SQL Databases\DroneBackend\bin\Debug\MySql.Data.dll
+C:\Users\_\Repositories\SYDE322\A3 - SQL Databases\DroneBackend\bin\Debug\MySql.Data.xml
+C:\Users\_\Repositories\SYDE322\A3 - SQL Databases\DroneBackend\obj\Debug\DroneBackend.csprojResolveAssemblyReference.cache
+C:\Users\_\Repositories\SYDE322\A3 - SQL Databases\DroneBackend\obj\Debug\DroneBackend.dll
+C:\Users\_\Repositories\SYDE322\A3 - SQL Databases\DroneBackend\obj\Debug\DroneBackend.pdb
