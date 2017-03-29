@@ -187,8 +187,8 @@ void runExercise3()
 int main()
 {
 	// To be run one at a time so comment exercises as so.
-	//runExercise1();
-	//runExercise2();
+	runExercise1();
+	runExercise2();
 	runExercise3();
 
 	system("pause");
